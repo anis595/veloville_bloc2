@@ -1,6 +1,14 @@
-"""Schémas Pydantic (entrées et sorties de l'API).
+from typing import Literal
 
-À compléter : schémas de lecture des trois ressources, enveloppe paginée, corps de
-connexion, réponse de connexion, corps de changement de statut, réponses
-des trois indicateurs.
-"""
+from pydantic import BaseModel, Field
+
+
+class Connexion(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class Jeton(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    role: Literal["exploitant", "direction"]

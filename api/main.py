@@ -1,7 +1,11 @@
-"""Point d'entrée de l'API VéloVille (FastAPI).
+from fastapi import FastAPI
 
-À compléter : créer l'application, inclure les routeurs (auth, stations, trajets,
-incidents, indicateurs) et exposer GET /sante -> {"statut": "ok"}.
+from api.routers import auth
 
-Lancement : uvicorn api.main:app --reload
-"""
+app = FastAPI(title="VéloVille", version="0.1.0")
+app.include_router(auth.router)
+
+
+@app.get("/sante", tags=["Supervision"])
+def sante():
+    return {"statut": "ok"}

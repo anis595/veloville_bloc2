@@ -1,11 +1,9 @@
-import uuid
 from pathlib import Path
 
 import pandas as pd
 import pytest
 from sqlalchemy import func, select, text
 
-from api.database import Base, engine
 from api.models import Incident, Station, Trajet
 from api.services.fiabilisation import (
     fiabiliser_incidents,
@@ -15,21 +13,6 @@ from api.services.fiabilisation import (
 from scripts.importer import importer_incidents, importer_stations, importer_trajets
 
 RACINE = Path(__file__).resolve().parents[2]
-
-
-@pytest.fixture
-def connexion_test():
-    connexion = engine.connect()
-    transaction = connexion.begin()
-    try:
-        schema = "test_" + uuid.uuid4().hex
-        connexion.execute(text(f'CREATE SCHEMA "{schema}"'))
-        connexion.execute(text(f'SET LOCAL search_path TO "{schema}"'))
-        Base.metadata.create_all(connexion)
-        yield connexion
-    finally:
-        transaction.rollback()
-        connexion.close()
 
 
 @pytest.fixture

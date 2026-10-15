@@ -1,7 +1,8 @@
 # VéloVille — Plateforme de valorisation des données
 
 Projet de consultation des stations, trajets et incidents VéloVille.
-La base PostgreSQL, les règles de fiabilisation et l'import CSV sont en place.
+La base PostgreSQL, les règles de fiabilisation, l'import CSV et la connexion
+JWT sont en place.
 
 ## Environnement
 
@@ -62,6 +63,26 @@ dont 22 trajets conservés après traitement des autres défauts.
 Le journal contient 192 événements. Plusieurs événements peuvent concerner
 une même ligne : ce nombre ne correspond pas au nombre de lignes rejetées.
 
+## Connexion à l'API
+
+Renseigner `JWT_SECRET` dans `.env` avec une valeur générée localement et garder
+`JWT_ALGORITHM=HS256`. La durée des jetons est définie par
+`JWT_EXPIRATION_MINUTES`, avec une valeur par défaut de 60 minutes.
+
+```powershell
+python -m uvicorn api.main:app --port 8000
+```
+
+Ouvrir http://localhost:8000/docs. `GET /sante` répond `{"statut":"ok"}`.
+Dans `POST /auth/login`, envoyer l'identifiant et le mot de passe d'un des
+comptes fournis. La réponse contient un jeton, son type `bearer` et le rôle.
+Les mots de passe sont vérifiés avec bcrypt contre les hachages en base.
+
+Les dépendances de sécurité vérifient la signature, l'expiration, le compte
+et le rôle. Elles seront utilisées par les routes de consultation ajoutées
+à l'étape suivante. Un jeton absent ou refusé produit un 401 ; un rôle
+insuffisant produit un 403.
+
 ## Vérifications
 
 ```powershell
@@ -72,6 +93,9 @@ python -m pytest
 
 Après chacun des deux imports, les comptages attendus sur une base initialement
 vide sont 120 stations, 2002 trajets et 177 incidents.
-Les tests de fiabilisation fonctionnent sans base. Les tests d'import utilisent
-un schéma PostgreSQL temporaire, annulé après chaque test. Le compte configuré
-par DATABASE_URL doit pouvoir créer un schéma dans la base.
+Les tests de fiabilisation fonctionnent sans base. Les tests d'import et
+d'authentification utilisent un schéma PostgreSQL temporaire, annulé après
+chaque test. La configuration vient de `TEST_DATABASE_URL` si elle existe,
+sinon de `DATABASE_URL`. Le compte doit pouvoir créer un schéma dans la base.
+Les mots de passe de test sont générés aléatoirement, ou lus dans
+`TEST_PASSWORD` si cette variable est définie.
