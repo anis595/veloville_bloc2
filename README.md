@@ -3,6 +3,7 @@
 Projet de consultation des stations, trajets et incidents VéloVille.
 La base PostgreSQL, les règles de fiabilisation, l'import CSV, la connexion
 JWT, les routes Stations, Trajets et Incidents et les trois indicateurs sont en place.
+Le front dispose du formulaire de connexion et du client HTTP centralisé.
 
 ## Environnement
 
@@ -119,6 +120,26 @@ une date de résolution ; il vaut `null` s'il n'y en a aucun.
 Les agrégats sont calculés en SQL avec SQLAlchemy : seules les lignes de résultat
 sont renvoyées à l'application. Les tests vérifient les calculs sur un petit jeu
 connu et les comparent aux requêtes SQL de contrôle sur les CSV fiabilisés.
+
+## Connexion au front
+
+Garder l'API démarrée et ouvrir un second terminal, depuis la racine du projet :
+
+```powershell
+python -m streamlit run front/app.py
+```
+
+Ouvrir http://localhost:8501. Le formulaire envoie l'identifiant et le mot de
+passe masqué à `POST /auth/login`. Après connexion, le jeton et le rôle sont
+conservés dans `st.session_state`. L'identifiant et le rôle sont affichés dans
+la barre latérale ; « Se déconnecter » vide la session.
+
+Le client `front/api_client.py` lit `API_URL` (défaut `http://localhost:8000`)
+et `API_TIMEOUT_SECONDES` (défaut 5) dans l'environnement. Il ajoute le jeton
+Bearer aux appels protégés et transforme les erreurs HTTP, les délais dépassés
+et les pannes réseau en messages en français. Le jeton n'est pas affiché.
+
+Les pages Stations, Incidents et Indicateurs restent à compléter.
 
 ## Vérifications
 
