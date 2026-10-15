@@ -165,6 +165,26 @@ ni fonctionnement en temps réel n'est ajouté. Les filtres des indicateurs sont
 regroupés dans un formulaire pour ne lancer les requêtes qu'à leur validation
 ou à l'ouverture de la page. Les bibliothèques du squelette suffisent.
 
+## Sauvegarde et restauration
+
+Le script `scripts/sauvegarde.sh` crée une archive PostgreSQL horodatée au
+format custom. Il demande `DATABASE_URL` dans l'environnement et renvoie
+un code non nul si la sauvegarde échoue. Un fichier incomplet est supprimé.
+
+Dans Git Bash, depuis la racine du projet :
+
+```bash
+set -a
+source .env
+set +a
+bash scripts/sauvegarde.sh
+```
+
+Ajouter les outils PostgreSQL au PATH si nécessaire. Les commandes de contrôle
+du catalogue et de restauration dans une base distincte figurent dans
+[la procédure de déploiement](docs/procedure-deploiement.md).
+Les archives de `sauvegardes/` sont ignorées par Git.
+
 ## Vérifications
 
 ```powershell
