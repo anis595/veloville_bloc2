@@ -4,6 +4,12 @@ Projet de consultation des stations, trajets et incidents VéloVille.
 La base PostgreSQL, les règles de fiabilisation, l'import CSV, la connexion
 JWT, les routes Stations, Trajets et Incidents et les trois indicateurs sont en place.
 Le front Streamlit permet la connexion et la consultation des trois écrans.
+Version 1.0.0. Installation complète dans
+[la procédure de déploiement](docs/procedure-deploiement.md).
+
+L'application suit le chemin CSV → fiabilisation → PostgreSQL → API FastAPI
+→ Streamlit. Les routeurs délèguent les traitements aux services ; le front
+centralise ses appels dans api_client.py.
 
 ## Environnement
 
@@ -11,6 +17,31 @@ Python 3.12 ou supérieur et PostgreSQL 14 ou supérieur.
 Les dépendances sont fixées dans `requirements.txt`. Installer avec
 `python -m pip install -r requirements.txt` dans l'environnement virtuel.
 Copier `.env.example` vers `.env`, puis renseigner la configuration locale.
+
+Dans PowerShell, depuis la racine du projet :
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+Ne pas écraser une configuration .env existante. Pour les commandes ci-dessous,
+activer l'environnement ou remplacer `python` par `.\.venv\Scripts\python.exe`.
+
+| Variable | Usage / valeur par défaut |
+|---|---|
+| DATABASE_URL | Connexion SQLAlchemy à PostgreSQL ; adapter celle de .env.example |
+| JWT_SECRET | Secret à générer localement ; obligatoire |
+| JWT_ALGORITHM | HS256 |
+| JWT_EXPIRATION_MINUTES | 60 |
+| API_URL | http://localhost:8000 |
+| API_TIMEOUT_SECONDES | 5 |
+| TEST_DATABASE_URL | Facultatif ; sinon les tests utilisent DATABASE_URL |
+| TEST_PASSWORD | Facultatif ; sinon mot de passe de test généré aléatoirement |
+
+Générer le secret avec `python -c "import secrets; print(secrets.token_hex(32))"`.
+Les étapes de création de la base et des comptes sont dans la procédure.
 
 ## Import des données
 
@@ -191,6 +222,7 @@ Les archives de `sauvegardes/` sont ignorées par Git.
 python scripts/importer.py
 python scripts/importer.py
 python -m pytest
+python -m pytest --cov=api/services --cov-report=term-missing
 ```
 
 Après chacun des deux imports, les comptages attendus sur une base initialement
@@ -201,3 +233,40 @@ chaque test. La configuration vient de `TEST_DATABASE_URL` si elle existe,
 sinon de `DATABASE_URL`. Le compte doit pouvoir créer un schéma dans la base.
 Les mots de passe de test sont générés aléatoirement, ou lus dans
 `TEST_PASSWORD` si cette variable est définie.
+
+Mesure du 15/10/2026 : **161 tests réussis ; couverture de api/services :
+100 % des 326 instructions**, au-dessus du minimum de 60 % demandé.
+Cette mesure porte sur les lignes exécutées, pas sur tous les comportements
+possibles. Les parcours Streamlit sont également testés avec AppTest.
+Un avertissement de dépréciation de Starlette concernant httpx est émis ;
+les tests fonctionnent avec les versions fixées.
+
+## Recette et documentation
+
+Les dix cas du [plan fourni](docs/recette/plan-de-recette.md) ont été exécutés
+dans l'ordre sur un schéma vide isolé : dix OK, aucun KO et aucun NT.
+Les [résultats et le procès-verbal](docs/recette/resultats-recette.md) précisent
+les preuves, les réserves et les contrôles restant à effectuer.
+
+- [Schéma et règles de gestion](docs/schema-donnees.md)
+- [Matrice des rôles et données sensibles](docs/matrice-roles-droits.md)
+- [Déploiement, sauvegarde et restauration](docs/procedure-deploiement.md)
+- [Journal des versions](CHANGELOG.md)
+- [Support de soutenance, dix diapositives](docs/soutenance.pdf)
+
+## Limites et points à valider
+
+Le front a été vérifié par AppTest et le serveur Streamlit a démarré. La
+lisibilité sur tablette, le clavier et le lecteur d'écran restent à valider
+dans un navigateur. La restauration complète dans une autre base n'a pas été
+exécutée ; seule la création d'une archive et la lecture de son catalogue
+ont été vérifiées. Les essais n'ont porté que sur l'extrait de données fourni.
+
+La gestion des comptes se fait par SQL. La déconnexion ne révoque pas un jeton
+déjà émis ; il expire à l'échéance prévue. La purge et la planification des
+sauvegardes ne sont pas incluses. Les fonctions météo et d'anticipation sont
+hors du périmètre V1. Le schéma fourni ne migre pas une base ancienne.
+
+Avant le dépôt, valider et signer le procès-verbal. L'énoncé demande aussi
+une branche de fonctionnalité ou de correction fusionnée et un tag par version
+du CHANGELOG ; ces éléments doivent correspondre à l'historique réellement livré.
