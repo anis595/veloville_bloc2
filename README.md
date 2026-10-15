@@ -3,7 +3,7 @@
 Projet de consultation des stations, trajets et incidents VéloVille.
 La base PostgreSQL, les règles de fiabilisation, l'import CSV, la connexion
 JWT, les routes Stations, Trajets et Incidents et les trois indicateurs sont en place.
-Le front dispose du formulaire de connexion et du client HTTP centralisé.
+Le front Streamlit permet la connexion et la consultation des trois écrans.
 
 ## Environnement
 
@@ -139,7 +139,31 @@ et `API_TIMEOUT_SECONDES` (défaut 5) dans l'environnement. Il ajoute le jeton
 Bearer aux appels protégés et transforme les erreurs HTTP, les délais dépassés
 et les pannes réseau en messages en français. Le jeton n'est pas affiché.
 
-Les pages Stations, Incidents et Indicateurs restent à compléter.
+Les pages du menu latéral proposent :
+
+- Stations : filtre par commune, pages de 10, 20 ou 50 lignes et total.
+- Incidents : filtre par statut et pagination ; seul l'exploitant peut
+  modifier le statut. Le tableau est rechargé après une modification.
+- Indicateurs : période, nombre de stations et bouton « Actualiser »,
+  trois métriques et trois tableaux, sans graphique.
+
+Sans connexion, chaque page demande de se connecter et propose un lien vers
+le formulaire. Les chargements, résultats vides et erreurs ont des messages
+en français. La liste des communes est mise en cache pendant une heure ;
+les listes paginées et les incidents restent lus dans l'API.
+
+## Choix écoresponsables
+
+La pagination est réalisée côté serveur, avec un maximum de 100 lignes par
+requête. Le front propose des tailles de 10, 20 et 50 pour limiter les
+transferts et l'affichage. Les indicateurs sont agrégés en SQL : l'application
+reçoit les résultats des calculs, sans charger tous les trajets en mémoire.
+
+La liste des communes est conservée avec `st.cache_data(ttl=3600)` pour éviter
+de relire les stations à chaque interaction. Aucun rafraîchissement automatique
+ni fonctionnement en temps réel n'est ajouté. Les filtres des indicateurs sont
+regroupés dans un formulaire pour ne lancer les requêtes qu'à leur validation
+ou à l'ouverture de la page. Les bibliothèques du squelette suffisent.
 
 ## Vérifications
 
