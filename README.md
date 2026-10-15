@@ -1,8 +1,8 @@
 # VéloVille — Plateforme de valorisation des données
 
 Projet de consultation des stations, trajets et incidents VéloVille.
-La base PostgreSQL, les règles de fiabilisation, l'import CSV et la connexion
-JWT sont en place.
+La base PostgreSQL, les règles de fiabilisation, l'import CSV, la connexion
+JWT et les routes Stations, Trajets et Incidents sont en place.
 
 ## Environnement
 
@@ -79,9 +79,27 @@ comptes fournis. La réponse contient un jeton, son type `bearer` et le rôle.
 Les mots de passe sont vérifiés avec bcrypt contre les hachages en base.
 
 Les dépendances de sécurité vérifient la signature, l'expiration, le compte
-et le rôle. Elles seront utilisées par les routes de consultation ajoutées
-à l'étape suivante. Un jeton absent ou refusé produit un 401 ; un rôle
-insuffisant produit un 403.
+et le rôle. Toutes les routes de données demandent un jeton. Un jeton absent
+ou refusé produit un 401 ; un rôle insuffisant produit un 403.
+
+Dans Swagger, copier la valeur de `access_token` obtenue à la connexion,
+puis cliquer sur Authorize et coller le jeton seul, sans préfixe Bearer.
+
+| Route | Paramètres / comportement |
+|---|---|
+| GET /stations | Filtre commune, page, taille_page ; tri par identifiant |
+| GET /stations/{station_id} | Station détaillée ; 404 si absente |
+| GET /trajets | Dates de début et fin incluses, station de départ ou d'arrivée, pagination ; tri par départ croissant |
+| GET /incidents | Filtre statut, pagination ; tri par signalement décroissant |
+| PUT /incidents/{incident_id}/statut | Rôle exploitant ; transitions ouvert vers en_cours ou resolu, en_cours vers resolu |
+
+La pagination renvoie total, page, taille_page et resultats. La taille par
+défaut est 20, le maximum 100 et la page minimale 1. Les paramètres hors
+bornes donnent 422. Une période inversée est également refusée avec 422.
+
+Le passage d'un incident à résolu renseigne sa date de résolution si elle
+est vide. Les PUT modifient réellement la base ; un nouvel import conserve
+ces modifications. Les tests annulent leurs propres modifications.
 
 ## Vérifications
 

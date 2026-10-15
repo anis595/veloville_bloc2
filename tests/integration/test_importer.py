@@ -1,31 +1,7 @@
-from pathlib import Path
-
-import pandas as pd
-import pytest
 from sqlalchemy import func, select, text
 
 from api.models import Incident, Station, Trajet
-from api.services.fiabilisation import (
-    fiabiliser_incidents,
-    fiabiliser_stations,
-    fiabiliser_trajets,
-)
 from scripts.importer import importer_incidents, importer_stations, importer_trajets
-
-RACINE = Path(__file__).resolve().parents[2]
-
-
-@pytest.fixture
-def donnees_valides():
-    stations = pd.read_csv(RACINE / "data/stations.csv", dtype=str, keep_default_na=False)
-    trajets = pd.read_csv(RACINE / "data/trajets.csv", dtype=str, keep_default_na=False)
-    incidents = pd.read_csv(RACINE / "data/incidents.csv", dtype=str, keep_default_na=False)
-
-    stations, _ = fiabiliser_stations(stations)
-    station_ids = set(stations["station_id"])
-    trajets, _ = fiabiliser_trajets(trajets, station_ids)
-    incidents, _ = fiabiliser_incidents(incidents, station_ids)
-    return stations, trajets, incidents
 
 
 def charger(connexion, donnees):
