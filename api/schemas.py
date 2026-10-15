@@ -71,3 +71,33 @@ class IncidentsPage(Pagination):
 
 class ChangementStatut(BaseModel):
     statut: Literal["en_cours", "resolu"]
+
+
+class ActiviteJour(BaseModel):
+    jour: date
+    nb_trajets: int
+
+
+class ActiviteReponse(BaseModel):
+    donnees: list[ActiviteJour]
+
+
+class StationActive(BaseModel):
+    station_id: str
+    nom: str
+    nb_departs: int
+    nb_arrivees: int
+
+
+class StationsActivesReponse(BaseModel):
+    donnees: list[StationActive]
+
+
+class IncidentsStatut(BaseModel):
+    statut: str
+    nb_incidents: int
+
+
+class IncidentsStatutReponse(BaseModel):
+    donnees: list[IncidentsStatut]
+    delai_moyen_resolution_heures: float | None

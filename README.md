@@ -2,7 +2,7 @@
 
 Projet de consultation des stations, trajets et incidents VéloVille.
 La base PostgreSQL, les règles de fiabilisation, l'import CSV, la connexion
-JWT et les routes Stations, Trajets et Incidents sont en place.
+JWT, les routes Stations, Trajets et Incidents et les trois indicateurs sont en place.
 
 ## Environnement
 
@@ -101,6 +101,25 @@ Le passage d'un incident à résolu renseigne sa date de résolution si elle
 est vide. Les PUT modifient réellement la base ; un nouvel import conserve
 ces modifications. Les tests annulent leurs propres modifications.
 
+## Indicateurs
+
+Les deux rôles peuvent consulter les trois routes protégées :
+
+| Route | Calcul |
+|---|---|
+| GET /indicateurs/activite-par-jour | Nombre de départs par jour, dates de début et fin incluses ; toute la période sans filtre |
+| GET /indicateurs/stations-actives | Départs et arrivées des stations classées par nombre total de mouvements ; limite par défaut 10, entre 1 et 50 |
+| GET /indicateurs/incidents-par-statut | Nombre par statut présent et délai moyen de résolution en heures, arrondi à une décimale |
+
+L'activité est triée par jour croissant. Les stations sont triées par mouvements
+décroissants, puis par identifiant en cas d'égalité. Une arrivée absente ne compte
+pour aucune station. Le délai moyen ne concerne que les incidents résolus avec
+une date de résolution ; il vaut `null` s'il n'y en a aucun.
+
+Les agrégats sont calculés en SQL avec SQLAlchemy : seules les lignes de résultat
+sont renvoyées à l'application. Les tests vérifient les calculs sur un petit jeu
+connu et les comparent aux requêtes SQL de contrôle sur les CSV fiabilisés.
+
 ## Vérifications
 
 ```powershell
@@ -111,8 +130,8 @@ python -m pytest
 
 Après chacun des deux imports, les comptages attendus sur une base initialement
 vide sont 120 stations, 2002 trajets et 177 incidents.
-Les tests de fiabilisation fonctionnent sans base. Les tests d'import et
-d'authentification utilisent un schéma PostgreSQL temporaire, annulé après
+Les tests de fiabilisation fonctionnent sans base. Les tests d'import, d'API
+et d'indicateurs utilisent un schéma PostgreSQL temporaire, annulé après
 chaque test. La configuration vient de `TEST_DATABASE_URL` si elle existe,
 sinon de `DATABASE_URL`. Le compte doit pouvoir créer un schéma dans la base.
 Les mots de passe de test sont générés aléatoirement, ou lus dans

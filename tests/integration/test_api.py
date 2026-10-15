@@ -5,7 +5,7 @@ import jwt
 import pytest
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from api.models import Incident
 from api.securite import decoder_access_token, utilisateur_courant
@@ -146,6 +146,9 @@ def test_role_exploitant_et_transitions(client, donnees, db_session, jeton_explo
     ("GET", "/stations/S001"),
     ("GET", "/trajets"),
     ("GET", "/incidents"),
+    ("GET", "/indicateurs/activite-par-jour"),
+    ("GET", "/indicateurs/stations-actives"),
+    ("GET", "/indicateurs/incidents-par-statut"),
     ("PUT", "/incidents/I2026-0001/statut"),
 ])
 def test_routes_sans_jeton(client, methode, route):
@@ -223,6 +226,10 @@ def test_station_introuvable(client, jeton_direction):
     "/trajets?date_debut=2026-08-30&date_fin=2026-08-24",
     "/incidents?statut=ferme",
     "/incidents?taille_page=101",
+    "/indicateurs/activite-par-jour?date_debut=invalide",
+    "/indicateurs/activite-par-jour?date_debut=2026-08-30&date_fin=2026-08-24",
+    "/indicateurs/stations-actives?limite=0",
+    "/indicateurs/stations-actives?limite=51",
 ])
 def test_parametres_invalides(client, jeton_direction, route):
     reponse = client.get(route, headers={"Authorization": "Bearer " + jeton_direction})
@@ -292,3 +299,76 @@ def test_nouveau_statut_invalide(client, jeton_exploitant):
         json={"statut": "ouvert"},
     )
     assert reponse.status_code == 422
+
+
+@pytest.mark.parametrize("role", ["exploitant", "direction"])
+def test_indicateurs_accessibles_aux_deux_roles(client, comptes, role):
+    connexion = client.post("/auth/login", json={
+        "username": role + "01", "password": comptes,
+    })
+    headers = {"Authorization": "Bearer " + connexion.json()["access_token"]}
+    for route in ["activite-par-jour", "stations-actives", "incidents-par-statut"]:
+        reponse = client.get("/indicateurs/" + route, headers=headers)
+        assert reponse.status_code == 200
+        assert reponse.json()["donnees"] == []
+
+
+def test_activite_comparee_au_sql(client, donnees, db_session, jeton_direction):
+    headers = {"Authorization": "Bearer " + jeton_direction}
+    params = {"date_debut": "2026-08-24", "date_fin": "2026-08-30"}
+    reponse = client.get("/indicateurs/activite-par-jour", headers=headers, params=params)
+    assert reponse.status_code == 200
+    lignes = db_session.execute(text("""
+        SELECT depart_horodatage::date AS jour, count(*) AS nb_trajets
+        FROM trajet
+        WHERE depart_horodatage::date BETWEEN '2026-08-24' AND '2026-08-30'
+        GROUP BY jour ORDER BY jour
+    """)).mappings().all()
+    attendu = [
+        {"jour": ligne["jour"].isoformat(), "nb_trajets": ligne["nb_trajets"]}
+        for ligne in lignes
+    ]
+    assert reponse.json() == {"donnees": attendu}
+    trajets = client.get("/trajets", headers=headers, params=params).json()
+    assert sum(ligne["nb_trajets"] for ligne in attendu) == trajets["total"] == 2002
+
+
+def test_stations_actives_sur_csv(client, donnees, db_session, jeton_direction):
+    headers = {"Authorization": "Bearer " + jeton_direction}
+    reponse = client.get("/indicateurs/stations-actives", headers=headers)
+    assert reponse.status_code == 200
+    lignes = db_session.execute(text("""
+        SELECT s.station_id, s.nom,
+               count(*) FILTER (WHERE m.sens = 'depart') AS nb_departs,
+               count(*) FILTER (WHERE m.sens = 'arrivee') AS nb_arrivees
+        FROM station s
+        JOIN (
+            SELECT station_depart AS station_id, 'depart' AS sens FROM trajet
+            UNION ALL
+            SELECT station_arrivee, 'arrivee' FROM trajet WHERE station_arrivee IS NOT NULL
+        ) m ON m.station_id = s.station_id
+        GROUP BY s.station_id, s.nom
+        ORDER BY count(*) DESC, s.station_id
+        LIMIT 10
+    """)).mappings().all()
+    assert reponse.json() == {"donnees": [dict(ligne) for ligne in lignes]}
+    assert len(reponse.json()["donnees"]) == 10
+
+
+def test_incidents_indicateur_sur_csv(client, donnees, db_session, jeton_direction):
+    reponse = client.get(
+        "/indicateurs/incidents-par-statut",
+        headers={"Authorization": "Bearer " + jeton_direction},
+    )
+    assert reponse.status_code == 200
+    resultat = reponse.json()
+    assert resultat["donnees"] == [
+        {"statut": "en_cours", "nb_incidents": 46},
+        {"statut": "ouvert", "nb_incidents": 55},
+        {"statut": "resolu", "nb_incidents": 76},
+    ]
+    delai = db_session.scalar(text("""
+        SELECT avg(extract(epoch FROM date_resolution - date_signalement)) / 3600
+        FROM incident WHERE statut = 'resolu' AND date_resolution IS NOT NULL
+    """))
+    assert resultat["delai_moyen_resolution_heures"] == round(float(delai), 1)
